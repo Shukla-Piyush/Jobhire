@@ -20,7 +20,7 @@ app.use(cookieParser());
 const corsOptions = {
   origin: [
     "http://localhost:5173",                 // ✅ local dev
-    "https://hirehubplatform.onrender.com"   // ✅ production
+    "https://jobportal-h5m6.onrender.com"   // ✅ production
   ],
   credentials: true,
 };
