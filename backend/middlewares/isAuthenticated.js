@@ -1,34 +1,33 @@
 import jwt from "jsonwebtoken";
 
-const isAuthenticated = async (req, res, next) => {
+const isAuthenticated = (req, res, next) => {
   try {
-    // Check token from cookie or header
-    let token = req.cookies?.token || req.headers.authorization?.split(" ")[1];
+    const authHeader = req.headers.authorization;
 
-    if (!token) {
-      return res.status(401).json({
-        message: "User not authenticated",
-        success: false,
-      });
+    // 1. Check if Authorization header exists
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "No token provided" });
     }
 
-    const decode = jwt.verify(token, process.env.SECRET_KEY);
+    // 2. Extract token from "Bearer <token>"
+    const token = authHeader.split(" ")[1];
+    console.log("Token received:", token); // Debug log
 
-    if (!decode) {
-      return res.status(401).json({
-        message: "Invalid token",
-        success: false,
-      });
+    // 3. Validate token existence
+    if (!token || token === "undefined" || token === "null") {
+      return res.status(401).json({ message: "Invalid token" });
     }
 
-    req.id = decode.userId; // storing decode userid
+    // 4. Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // 5. Attach decoded user data to req
+    req.user = decoded;
+
     next();
   } catch (error) {
-    console.log(error);
-    return res.status(401).json({
-      message: "Authentication failed",
-      success: false,
-    });
+    console.error("JWT Error:", error.message);
+    return res.status(401).json({ message: "Unauthorized, token invalid" });
   }
 };
 
