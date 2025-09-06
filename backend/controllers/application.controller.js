@@ -3,14 +3,16 @@ import { Job } from "../models/job.model.js";
 
 export const applyJob = async (req, res) => {
     try {
-        const userId = req.id;
+        const userId = req.user.id; // ✅ fixed
         const jobId = req.params.id;
+
         if (!jobId) {
             return res.status(400).json({
                 message: "Job id is required.",
                 success: false
-            })
-        };
+            });
+        }
+
         // check if the user has already applied for the job
         const existingApplication = await Application.findOne({ job: jobId, applicant: userId });
 
@@ -21,110 +23,125 @@ export const applyJob = async (req, res) => {
             });
         }
 
-        // check if the jobs exists
+        // check if the job exists
         const job = await Job.findById(jobId);
         if (!job) {
             return res.status(404).json({
                 message: "Job not found",
                 success: false
-            })
+            });
         }
+
         // create a new application
         const newApplication = await Application.create({
-            job:jobId,
-            applicant:userId,
+            job: jobId,
+            applicant: userId,
         });
 
         job.applications.push(newApplication._id);
-        await job.save();  // ob save kar rha hu 
+        await job.save();
+
         return res.status(201).json({
-            message:"Job applied successfully.",
-            success:true
-        })
+            message: "Job applied successfully.",
+            success: true
+        });
     } catch (error) {
-        console.log(error);
+        console.error("Apply Job Error:", error);
+        return res.status(500).json({ message: error.message, success: false });
     }
 };
-export const getAppliedJobs = async (req,res) => {
+
+export const getAppliedJobs = async (req, res) => {
     try {
-        const userId = req.id;
-        const application = await Application.find({applicant:userId}).sort({createdAt:-1}).populate({  // ek perticular user jo bhut saare job me applied kiya hoga 
-            path:'job',
-            options:{sort:{createdAt:-1}},
-            populate:{
-                path:'company',
-                options:{sort:{createdAt:-1}},
-            }
-        });
-        if(!application){
+        const userId = req.user.id; // ✅ fixed
+        const application = await Application.find({ applicant: userId })
+            .sort({ createdAt: -1 })
+            .populate({
+                path: 'job',
+                options: { sort: { createdAt: -1 } },
+                populate: {
+                    path: 'company',
+                    options: { sort: { createdAt: -1 } },
+                }
+            });
+
+        if (!application || application.length === 0) {
             return res.status(404).json({
-                message:"No Applications",
-                success:false
-            })
-        };
+                message: "No Applications",
+                success: false
+            });
+        }
+
         return res.status(200).json({
             application,
-            success:true
-        })
+            success: true
+        });
     } catch (error) {
-        console.log(error);
+        console.error("Get Applied Jobs Error:", error);
+        return res.status(500).json({ message: error.message, success: false });
     }
-}
-// admin dekhega kitna user ne apply kiya hai
-export const getApplicants = async (req,res) => {
+};
+
+// admin: see how many users applied for a job
+export const getApplicants = async (req, res) => {
     try {
-        const jobId = req.params.id;   // ess perticular job me kitne logo ne apply kiya hai 
+        const jobId = req.params.id;
         const job = await Job.findById(jobId).populate({
-            path:'applications',
-            options:{sort:{createdAt:-1}},
-            populate:{
-                path:'applicant'
+            path: 'applications',
+            options: { sort: { createdAt: -1 } },
+            populate: {
+                path: 'applicant'
             }
         });
-        if(!job){
+
+        if (!job) {
             return res.status(404).json({
-                message:'Job not found.',
-                success:false
-            })
-        };
+                message: 'Job not found.',
+                success: false
+            });
+        }
+
         return res.status(200).json({
-            job, 
-            succees:true
+            job,
+            success: true // ✅ fixed typo
         });
     } catch (error) {
-        console.log(error);
+        console.error("Get Applicants Error:", error);
+        return res.status(500).json({ message: error.message, success: false });
     }
-}
-export const updateStatus = async (req,res) => {
-    try {
-        const {status} = req.body;
-        const applicationId = req.params.id;
-        if(!status){
-            return res.status(400).json({
-                message:'status is required',
-                success:false
-            })
-        };
+};
 
-        // find the application by applicantion id
-        const application = await Application.findOne({_id:applicationId});  // different persons ka id milega so that we can update
-        if(!application){
+export const updateStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+        const applicationId = req.params.id;
+
+        if (!status) {
+            return res.status(400).json({
+                message: 'status is required',
+                success: false
+            });
+        }
+
+        // find the application by application id
+        const application = await Application.findOne({ _id: applicationId });
+        if (!application) {
             return res.status(404).json({
-                message:"Application not found.",
-                success:false
-            })
-        };
+                message: "Application not found.",
+                success: false
+            });
+        }
 
         // update the status
         application.status = status.toLowerCase();
         await application.save();
 
         return res.status(200).json({
-            message:"Status updated successfully.",
-            success:true
+            message: "Status updated successfully.",
+            success: true
         });
-
     } catch (error) {
-        console.log(error);
+        console.error("Update Status Error:", error);
+        return res.status(500).json({ message: error.message, success: false });
     }
-} 
+};
